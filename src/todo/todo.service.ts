@@ -1,24 +1,46 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Todo } from './todo.entity';
+import { Repository } from 'typeorm';
+import { CreateTodoDto } from './dto/create-todo.dto';
+import { UpdateTodoDto } from './dto/update-todo.dto';
 
 @Injectable()
 export class TodoService {
-  getAllTodos() {
-    return [{ message: 'OK' }];
+  constructor(@InjectRepository(Todo) private readonly todoRepo: Repository<Todo>) {}
+
+  async getAllTodos() {
+    return await this.todoRepo.find();
   }
 
-  getTodoById(id: number) {
-    return { message: 'This is a specific todo of id = ' + id };
+  async getTodoById(id: number) {
+    const result = await this.todoRepo.findOne({ where: { id }});
+    if (!result) {
+      throw new NotFoundException(`Todo with id ${id} not found.`);
+    }
+
+    return result;
   }
 
-  addTodo() {
-    return { message: 'You have added a todo' };
+  async addTodo(createTodoDto: CreateTodoDto) {
+    const todo = this.todoRepo.create(createTodoDto);
+    return await this.todoRepo.save(todo);
   }
 
-  updateTodo() {
-    return { message: 'You have updated a todo' };
+  async updateTodo(id: number, updateTodoDto: UpdateTodoDto) {
+    const todo = await this.todoRepo.findOne({ where: { id } });
+    if (!todo) {
+      throw new NotFoundException(`Todo with id ${id} not found.`);
+    }
+    Object.assign(todo, updateTodoDto);
+    return await this.todoRepo.save(todo);
   }
 
-  deleteTodo() {
-    return { message: 'You have deleted a todo' };
+  async deleteTodo(id: number) {
+    const result = await this.todoRepo.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Todo with id ${id} not found.`);
+    }
+    return { message: 'Successfully deleted' };
   }
 }
